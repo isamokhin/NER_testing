@@ -1,23 +1,30 @@
 import spacy
+from spacy.gold import offsets_from_biluo_tags
 import json
 from itertools import chain
 from dateutil import parser
 import pandas as pd
 import plac
-
+import joblib
+from crf import collect_the_features
+import string
+from ukr_stemmer3 import UkrainianStemmer
 
 class NERTest:
 
     def __init__(self,
+                 lang,
                  method_name,
                  model_path=None,
                  exclude=None):
 
         self.methods_dict = {
             'semantrum': False,
-            'spacy': True
+            'spacy': True,
+            'crf': True
         }
 
+        self.lang = lang
         self.method_name = method_name
         self.model_path = model_path
         if not exclude:
@@ -53,6 +60,10 @@ class NERTest:
         if method_name == 'spacy':
             import spacy
             self.nlp = spacy.load(model_path)
+        elif method_name == 'crf':
+            import spacy
+            self.crf = joblib.load(model_path)
+            self.nlp = spacy.blank(self.lang)
         else:
             pass
 
@@ -62,6 +73,8 @@ class NERTest:
             func = self.spacy_ner
         elif method_name == 'semantrum':
             func = self.semantrum_ner
+        elif method_name == 'crf':
+            func = self.crf_ner
         return func
 
     def semantrum_ner(self, doc):
@@ -102,6 +115,32 @@ class NERTest:
                                ])
             cursor += (len(p) + 2)
         return spacy_ents
+
+    def crf_ner(self, doc):
+        """
+        Provide correct spans for crf predictions.
+        """
+        text = doc['text']
+        crf_ents = []
+        cursor = 0
+        for p in text.split('\n\n'):
+            spacy_doc = self.nlp(p)
+            tokens = [t.text for t in spacy_doc]
+            features = collect_the_features(tokens)
+            tags = self.crf.predict([features])[0]
+            if tags[0].startswith('I'):
+                tags[0] = tags[0].replace('I-', 'B-')
+            #print(tags)
+            crf_spans = offsets_from_biluo_tags(spacy_doc, tags)
+            crf_ents.extend([(start_char + cursor,
+                              end_char + cursor,
+                              label)
+                               for (start_char, end_char, label) in crf_spans
+                               if label not in self.exclude
+                               ])
+            cursor += (len(p) + 2)
+
+        return crf_ents
 
     def overlap(self, span1, span2, unlabeled=False):
         if unlabeled:
@@ -169,7 +208,7 @@ class NERTest:
         spans = set(self.ner_func(doc))
         gold_spans = set([(ent['start_index'], ent['end_index'], ent['type'])
                           for ent in doc['entities'] if ent['source'] == 'text'])
-        type_dict = {}
+        type_dict = dict()
         for etype in self.ent_list:
             type_spans = {s for s in spans
                           if s[2] == etype}
@@ -305,42 +344,12 @@ class NERTest:
         return res_df
 
 
-@plac.annotations(
-    data_path=("Path to test data", "option", "d", str),
-    spacy_model_path=("Path to spacy model", "option", "m", str),
-)
-def main(data_path, spacy_model_path):
-    if not data_path:
-        print('Please provide path to test data')
-        return
-    with open(data_path) as f:
-        ner_enriched = json.load(f)
-    ner_enriched = sorted(ner_enriched,
-                          key=lambda doc: parser.parse(doc['created']))
-    test_data = ner_enriched[round(len(ner_enriched) * 0.9):]
-    sem_test = NERTest('semantrum')
-    spacy_test = NERTest('spacy', spacy_model_path)
-    print(f'\nUsing {data_path} as path to the data.')
-    print(f'There are {len(test_data)} docs in test data.')
-    print(f'Using {spacy_model_path} as path to the spacy model.')
-    print('')
-    sem_test.print_comparisons(test_data)
-    print('')
-    spacy_test.print_comparisons(test_data)
-    print('')
-    sem_df = sem_test.get_full_stats(test_data)
-    if '_uk' in data_path:
-        lang = 'uk'
-    elif '_ru' in data_path:
-        lang = 'ru'
-    else:
-        lang = 'xx'
-    sem_df.to_csv(f'semantrum_test_{lang}.csv', index=False)
-    print(f'Saved Semantrum full test results to semantrum_test_{lang}.csv.')
-    spacy_df = spacy_test.get_full_stats(test_data)
-    spacy_df.to_csv(f'spacy_test_{lang}.csv', index=False)
-    print(f'Saved Spacy full test results to spacy_test_{lang}.csv.')
-
+def main():
+    with open('ner_uk_enriched.json') as f:
+        ner_uk = json.load(f)
+    test_data = ner_uk[round(len(ner_uk) * 0.9):]
+    crf_test = NERTest(method_name='crf', lang='uk', model_path='ner_uk_crf.joblib')
+    crf_test.print_comparisons(test_data)
 
 if __name__ == '__main__':
     plac.call(main)
