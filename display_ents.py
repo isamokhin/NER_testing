@@ -53,7 +53,6 @@ def semantrum_ner(doc):
                 text_ents.append(ent_tuple)
     return title_ents, text_ents
 
-
 def sem_to_ents(sem_doc, nlp):
     title_ents, text_ents = semantrum_ner(sem_doc)
     source_dict = {'title': title_ents,
@@ -73,7 +72,6 @@ def sem_to_ents(sem_doc, nlp):
             docs.append(doc)
             cursor += (p_len + 2)
     return docs
-
 
 def render_sem_ents(sem_doc, nlp):
     docs = sem_to_ents(sem_doc, nlp)

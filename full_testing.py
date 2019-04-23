@@ -28,8 +28,8 @@ def main(data_path, spacy_model_path, crf_model_path):
         print('')
         sem_test.print_comparisons(test_data)
         sem_df = sem_test.get_full_stats(test_data)
-        sem_df.to_csv(f'semantrum_test_{lang}.csv', index=False)
-        print(f'Saved Semantrum full test results to semantrum_test_{lang}.csv.')
+        sem_df.to_csv(f'test_semantrum_{lang}.csv', index=False)
+        print(f'Saved Semantrum full test results to test_semantrum_{lang}.csv.')
     spacy_test = NERTest(method_name='spacy', lang=lang, model_path=spacy_model_path)
     crf_test = NERTest(method_name='crf', lang=lang, model_path=crf_model_path)
     print('')
@@ -37,11 +37,11 @@ def main(data_path, spacy_model_path, crf_model_path):
     print('')
     crf_test.print_comparisons(test_data)
     spacy_df = spacy_test.get_full_stats(test_data)
-    spacy_df.to_csv(f'spacy_test_{lang}.csv', index=False)
-    print(f'Saved Spacy full test results to spacy_test_{lang}.csv.')
+    spacy_df.to_csv(f'test_{spacy_model_path[:-1]}.csv', index=False)
+    print(f'Saved Spacy full test results to test_{spacy_model_path[:-1]}.csv.')
     crf_df = crf_test.get_full_stats(test_data)
-    crf_df.to_csv(f'crf_test_{lang}.csv', index=False)
-    print(f'Saved CRF full test results to crf_test_{lang}.csv.')
+    crf_df.to_csv(f'test_{crf_model_path}.csv', index=False)
+    print(f'Saved CRF full test results to test_{crf_model_path}.csv.')
 
 
 if __name__ == '__main__':

@@ -22,8 +22,8 @@ def main(data_path, spacy_model_path):
     spacy_test.print_comparisons(test_data)
     print('')
     spacy_df = spacy_test.get_full_stats(test_data)
-    spacy_df.to_csv(f'spacy_test_{lang}.csv', index=False)
-    print(f'Saved Spacy full test results to spacy_test_{lang}.csv.')
+    spacy_df.to_csv(f'test_{spacy_model_path[:-1]}.csv', index=False)
+    print(f'Saved Spacy full test results to test_{spacy_model_path[:-1]}.csv.')
 
 
 if __name__ == '__main__':
